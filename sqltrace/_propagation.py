@@ -136,8 +136,9 @@ def auto_explain_notice_handler(diagnostic: Diagnostic, hooks: Sequence[_Hook] =
             except Exception:
                 # not the right payload, e.g. if auto_explain is being used without sqlcommenter tracing
                 return
+            query = query[:comment_start].strip() + ';'
             attributes = {
-                'db.statement': plan['Query Text'],
+                'db.statement': query,
                 'db.plan': json.dumps(plan['Plan']),
                 **parsed_qs,
             }
