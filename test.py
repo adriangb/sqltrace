@@ -1,4 +1,3 @@
-import asyncio
 from typing import Any
 
 from opentelemetry import trace
@@ -7,44 +6,32 @@ from opentelemetry.sdk.trace.export import (
     ConsoleSpanExporter,
     SimpleSpanProcessor,
 )
-from psycopg import AsyncConnection
-from psycopg_pool import AsyncConnectionPool
-from sqltrace.psycopg import async_setup_auto_explain, AsyncCursor, notice_handler
+from psycopg import Connection
+from psycopg_pool import ConnectionPool
+from sqltrace.psycopg import setup_auto_explain, Cursor, notice_handler
 
 provider = TracerProvider()
 provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
 trace.set_tracer_provider(provider)
 
-tracer = trace.get_tracer('test')
+tracer = trace.get_tracer("test")
 
 
-async def main() -> None:
-    dsn = "postgresql://postgres:postgres@localhost:5432/postgres"
-    async def configure(conn: AsyncConnection[Any]) -> None:
-        conn.add_notice_handler(notice_handler)
-
-    async with AsyncConnectionPool(dsn, configure=configure, kwargs={'autocommit': True}) as pool:
-        async with pool.connection() as conn:
-            await async_setup_auto_explain(conn, 10)
-
-        with tracer.start_as_current_span('test'):
-            async with pool.connection() as conn:
-                conn.cursor_factory = AsyncCursor
-                # not logged
-                await conn.execute("SELECT 1")
-                # logged
-                await conn.execute("SELECT pg_sleep(1)")
+dsn = "postgresql://postgres:postgres@localhost:5432/postgres"
 
 
-asyncio.run(main())
+def configure(conn: Connection[Any]) -> None:
+    conn.add_notice_handler(notice_handler)
 
 
-# import psycopg
+with ConnectionPool(dsn, configure=configure, kwargs={"autocommit": True}) as pool:
+    with pool.connection() as conn:
+        setup_auto_explain(conn, 10)
 
-
-# dsn = "postgresql://postgres:postgres@localhost:5432/postgres"
-# conn = psycopg.connect(dsn, autocommit=True)
-# conn.add_notice_handler(log_notice)
-
-# cur = conn.execute("ROLLBACK")
-# print(cur.statusmessage)
+    with tracer.start_as_current_span("test"):
+        with pool.connection() as conn:
+            conn.cursor_factory = Cursor
+            # not logged
+            conn.execute("SELECT 1")
+            # logged
+            conn.execute("SELECT pg_sleep(1)")
