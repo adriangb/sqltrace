@@ -132,7 +132,7 @@ def auto_explain_notice_handler(diagnostic: Diagnostic, hooks: Sequence[_Hook] =
                 
                 ctx = propagate.extract(carrier=parsed_qs)
                 # convert the start time to a nano timestamp as expected by opentelemetry
-                start_time = int(float(parsed_qs['start_time'][0]) * 1e9)
+                start_time = int(float(parsed_qs['start_time']) * 1e9)
                 query = query[:comment_start].strip() + ';'
                 attributes = {
                     'db.statement': query,
